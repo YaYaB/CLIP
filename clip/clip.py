@@ -72,14 +72,21 @@ def _convert_image_to_rgb(image):
     return image.convert("RGB")
 
 
-def _transform(n_px):
-    return Compose([
-        Resize(n_px, interpolation=BICUBIC),
-        CenterCrop(n_px),
-        _convert_image_to_rgb,
-        ToTensor(),
-        Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
-    ])
+def _transform(n_px, gpu_preprocessing):
+    if gpu_preprocessing:
+        return Compose([
+            Resize(n_px, interpolation=BICUBIC),
+            CenterCrop(n_px),
+            Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
+        ])
+    else:
+        return Compose([
+            Resize(n_px, interpolation=BICUBIC),
+            CenterCrop(n_px),
+            _convert_image_to_rgb,
+             ToTensor(),
+            Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
+        ])
 
 
 def available_models() -> List[str]:
@@ -87,7 +94,7 @@ def available_models() -> List[str]:
     return list(_MODELS.keys())
 
 
-def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_available() else "cpu", jit: bool = False, download_root: str = None):
+def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_available() else "cpu", jit: bool = False, download_root: str = None, gpu_preprocessing: bool = False):
     """Load a CLIP model
 
     Parameters
@@ -103,6 +110,9 @@ def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_a
 
     download_root: str
         path to download the model files; by default, it uses "~/.cache/clip"
+
+    gpu_preprocessing: bool
+        Whether to make preprocessing on gpu or not
 
     Returns
     -------
@@ -134,7 +144,7 @@ def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_a
         model = build_model(state_dict or model.state_dict()).to(device)
         if str(device) == "cpu":
             model.float()
-        return model, _transform(model.visual.input_resolution)
+        return model, _transform(model.visual.input_resolution, gpu_preprocessing)
 
     # patch the device names
     device_holder = torch.jit.trace(lambda: torch.ones([]).to(torch.device(device)), example_inputs=[])
@@ -186,7 +196,7 @@ def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_a
 
         model.float()
 
-    return model, _transform(model.input_resolution.item())
+    return model, _transform(model.input_resolution.item(), gpu_preprocessing)
 
 
 def tokenize(texts: Union[str, List[str]], context_length: int = 77, truncate: bool = False) -> torch.LongTensor:
