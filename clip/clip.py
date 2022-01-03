@@ -79,7 +79,14 @@ def _transform(n_px, gpu_preprocessing):
             CenterCrop(n_px),
             Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
         ])
-    else:
+    elif gpu_preprocessing == False:
+        return Compose([
+            Resize(n_px, interpolation=BICUBIC),
+            CenterCrop(n_px),
+            ToTensor(),
+            Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
+        ])
+    elif gpu_preprocessing == None:
         return Compose([
             Resize(n_px, interpolation=BICUBIC),
             CenterCrop(n_px),
@@ -94,7 +101,7 @@ def available_models() -> List[str]:
     return list(_MODELS.keys())
 
 
-def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_available() else "cpu", jit: bool = False, download_root: str = None, gpu_preprocessing: bool = False):
+def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_available() else "cpu", jit: bool = False, download_root: str = None, gpu_preprocessing: bool = None):
     """Load a CLIP model
 
     Parameters
